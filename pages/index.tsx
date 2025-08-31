@@ -33,10 +33,11 @@ export default function Home() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const processData = (json: any) => {
-    const userKeys = Object.keys(json);
+    const userData = json.data;
+    const userKeys = Object.keys(userData);
     if (userKeys.length === 0) throw new Error("No user data received");
 
-    const labels = json[userKeys[0]].map((pt: BatteryPoint) =>
+    const labels = userData[userKeys[0]].map((pt: BatteryPoint) =>
       moment.tz(pt.timestamp_ms, "Australia/Sydney").format("HH:mm")
     );
 
@@ -51,7 +52,7 @@ export default function Home() {
 
     const datasets = userKeys.map((user, idx) => ({
       label: user.toUpperCase(),
-      data: json[user].map((pt: BatteryPoint) => pt.body_battery),
+      data: userData[user].map((pt: BatteryPoint) => pt.body_battery),
       borderColor: colorPalette[idx % colorPalette.length],
       backgroundColor: colorPalette[idx % colorPalette.length],
       fill: true,
