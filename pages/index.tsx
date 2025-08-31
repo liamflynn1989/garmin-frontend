@@ -52,13 +52,17 @@ export default function Home() {
           "rgba(255, 159, 64, 0.6)",
         ];
 
+
+
         const datasets = userKeys.map((user, idx) => ({
-          label: user.toUpperCase(),
-          data: json[user].map((pt: BatteryPoint) => pt.body_battery),
-          borderColor: colorPalette[idx % colorPalette.length],
-          backgroundColor: colorPalette[idx % colorPalette.length],
-          fill: true,
-          tension: 0.4,
+        label: user.toUpperCase(),
+        data: json[user].map((pt: BatteryPoint) =>
+            isNaN(pt.body_battery) ? null : pt.body_battery
+        ),
+        borderColor: colorPalette[idx % colorPalette.length],
+        backgroundColor: colorPalette[idx % colorPalette.length],
+        fill: true,
+        tension: 0.4,
         }));
 
         setChartData({ labels, datasets });
