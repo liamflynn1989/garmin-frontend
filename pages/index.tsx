@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
 import moment from "moment-timezone";
+const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 // Chart.js registration
 import {
@@ -28,7 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/body-battery")
+    fetch(`${API_URL}/api/body-battery`)
       .then((res) => {
         if (!res.ok) throw new Error("Network response was not ok");
         return res.json();
