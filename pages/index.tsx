@@ -20,52 +20,72 @@ ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Title, T
 
 type BatteryPoint = {
   timestamp_ms: number;
-  body_battery: number;
+  body_battery: number | null;
 };
+
+const CACHE_KEY = "bodyBatteryCache";
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 export default function Home() {
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const processData = (json: any) => {
+    const userKeys = Object.keys(json);
+    if (userKeys.length === 0) throw new Error("No user data received");
+
+    const labels = json[userKeys[0]].map((pt: BatteryPoint) =>
+      moment.tz(pt.timestamp_ms, "Australia/Sydney").format("HH:mm")
+    );
+
+    const colorPalette = [
+      "rgba(255, 99, 132, 0.6)",
+      "rgba(54, 162, 235, 0.6)",
+      "rgba(255, 206, 86, 0.6)",
+      "rgba(75, 192, 192, 0.6)",
+      "rgba(153, 102, 255, 0.6)",
+      "rgba(255, 159, 64, 0.6)",
+    ];
+
+    const datasets = userKeys.map((user, idx) => ({
+      label: user.toUpperCase(),
+      data: json[user].map((pt: BatteryPoint) => pt.body_battery),
+      borderColor: colorPalette[idx % colorPalette.length],
+      backgroundColor: colorPalette[idx % colorPalette.length],
+      fill: true,
+      tension: 0.4,
+    }));
+
+    return { labels, datasets };
+  };
 
   useEffect(() => {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const age = Date.now() - new Date(parsed.updated).getTime();
+      if (age < CACHE_TTL_MS) {
+        setChartData(processData(parsed.data));
+        setLastUpdated(parsed.updated);
+        setLoading(false);
+        return;
+      }
+    }
+
     fetch(`${API_URL}/api/body-battery`)
       .then((res) => {
         if (!res.ok) throw new Error("Network response was not ok");
         return res.json();
       })
       .then((json) => {
-        const userKeys = Object.keys(json);
-        if (userKeys.length === 0) throw new Error("No user data received");
-
-        // Use timestamps from the first user as the x-axis labels
-        const labels = json[userKeys[0]].map((pt: BatteryPoint) =>
-          moment.tz(pt.timestamp_ms, "Australia/Sydney").format("HH:mm")
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({ data: json.data, updated: json.updated })
         );
-
-        const colorPalette = [
-          "rgba(255, 99, 132, 0.6)",
-          "rgba(54, 162, 235, 0.6)",
-          "rgba(255, 206, 86, 0.6)",
-          "rgba(75, 192, 192, 0.6)",
-          "rgba(153, 102, 255, 0.6)",
-          "rgba(255, 159, 64, 0.6)",
-        ];
-
-
-
-        const datasets = userKeys.map((user, idx) => ({
-        label: user.toUpperCase(),
-        data: json[user].map((pt: BatteryPoint) =>
-            isNaN(pt.body_battery) ? null : pt.body_battery
-        ),
-        borderColor: colorPalette[idx % colorPalette.length],
-        backgroundColor: colorPalette[idx % colorPalette.length],
-        fill: true,
-        tension: 0.4,
-        }));
-
-        setChartData({ labels, datasets });
+        setChartData(processData(json.data));
+        setLastUpdated(json.updated);
       })
       .catch((err) => {
         console.error(err);
@@ -81,9 +101,14 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
-      <h1 className="text-2xl font-bold mb-6 text-center">
-        Garmin Body Battery — Today (Sydney Time)
+      <h1 className="text-2xl font-bold mb-2 text-center">
+        Body Battery Bonanza
       </h1>
+      {lastUpdated && (
+        <p className="text-center text-sm text-gray-600 mb-6">
+          Last updated at {moment(lastUpdated).tz("Australia/Sydney").format("hh:mm A")}
+        </p>
+      )}
       <Line
         data={chartData}
         options={{
